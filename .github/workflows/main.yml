@@ -2,8 +2,11 @@ name: GLaDOS Daily Checkin
 
 on:
   schedule:
-    - cron: '30 16 * * *'          # 每天 UTC 16:30（北京时间 0:30）
+    - cron: '37 16 * * *'          # 每天 UTC 16:37（北京时间次日 0:37）
   workflow_dispatch:             # 支持手动触发
+
+permissions:
+  contents: write               # 每月自动保活，避免 GitHub 60 天不活跃停用
 
 jobs:
   checkin:
@@ -25,3 +28,21 @@ jobs:
         env:
           GLADOS: ${{ secrets.GLADOS }}
         run: python checkin.py
+
+      # 仅在上次提交超过 30 天时更新一次心跳文件，不影响签到结果
+      - name: Keep scheduled workflow active
+        if: ${{ always() && github.event_name == 'schedule' }}
+        shell: bash
+        run: |
+          last_commit_ts="$(git log -1 --format=%ct)"
+          now_ts="$(date +%s)"
+          if (( now_ts - last_commit_ts >= 30 * 86400 )); then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            date -u +'%Y-%m-%dT%H:%M:%SZ' > .github/schedule-heartbeat.txt
+            git add .github/schedule-heartbeat.txt
+            git commit -m "chore: keep checkin schedule active [skip ci]"
+            git push
+          else
+            echo "Recent repository activity exists; no keepalive commit needed."
+          fi
