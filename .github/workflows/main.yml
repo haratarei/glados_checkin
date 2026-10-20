@@ -27,6 +27,7 @@ jobs:
       - name: Run checkin script
         env:
           GLADOS: ${{ secrets.GLADOS }}
+          GLADOS_USER_AGENT: ${{ secrets.GLADOS_USER_AGENT }}
         run: python checkin.py
 
       # 仅在上次提交超过 30 天时更新一次心跳文件，不影响签到结果
