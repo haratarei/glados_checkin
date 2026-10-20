@@ -6,7 +6,7 @@ GLaDOS（glados.cloud / glados.rocks / glados.network）每日自动签到脚本
 
 如 GitHub Actions 日志显示 `code=-2 | message=没有权限`，说明签到请求被 GLaDOS 服务器拒绝，GitHub Action 本身能运行。
 
-GLaDOS 自 2026 年 9 月升级了 Cookie 会话；旧版 `gld:sess` 可能无法调用新版 API。请：
+GLaDOS 自 2026 年 9 月升级了 Cookie 会话；旧版 `koa:sess` 可能无法调用新版 API，需要新会话中的 `gld:sess` 与 `gld:sess.sig`。请：
 
 1. 在登录 GLaDOS 的浏览器打开 https://glados.cloud/console/checkin，退出并重新登录。
 2. 按 F12 → Network（网络）→ 刷新，找到 `/api/user/status` 请求，在 Request Headers 中复制**完整的 Cookie 值**（应包含 `gld:sess=` 和 `gld:sess.sig=`）。
@@ -90,6 +90,6 @@ gld:sess=账号3; gld:sess.sig=账号3;
 如果需要调整时间，可以修改 `.github/workflows/xxx.yml` 中的：
 ```yaml
 schedule:
-  - cron: '37 16 * * *'  # UTC 时间 16:30
+  - cron: '37 16 * * *'  # UTC 时间 16:37
 ```
 **注意：GitHub Actions 使用 UTC 时间，需要自己换算成北京时间（+8 小时）。**
