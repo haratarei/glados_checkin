@@ -7,7 +7,12 @@ import sys
 # ======================
 GLADOS_COOKIES = os.getenv("GLADOS", "").strip()   # 多账号用换行分隔
 
-UA = "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0)"
+# GLaDOS 新版会话可能校验设备平台；可以通过 GLADOS_USER_AGENT 提供浏览器真实 UA
+UA = os.getenv("GLADOS_USER_AGENT", "").strip() or (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/130.0.0.0 Safari/537.36"
+)
 
 CHECKIN_URL = "https://glados.cloud/api/user/checkin"
 STATUS_URL  = "https://glados.cloud/api/user/status"
@@ -18,13 +23,14 @@ REFERER     = "https://glados.cloud/console/checkin"
 SUCCESS_KEYWORDS = [
     "Checkin! Got",                             # 成功获得点数
     "Checkin Repeats! Please Try Tomorrow",     # 今天已签到
+    "Today's observation logged.",              # 2026 新版重复签到提示
 ]
 
 
 def glados_checkin():
     if not GLADOS_COOKIES:
-        print("未设置 GLADOS 环境变量，跳过签到")
-        return
+        print("错误：未配置 GLADOS Secret，无法签到；请在仓库 Actions Secrets 中配置。")
+        sys.exit(1)
 
     cookies_list = [c.strip() for c in GLADOS_COOKIES.split("\n") if c.strip()]
 
@@ -32,6 +38,9 @@ def glados_checkin():
 
     for idx, cookie in enumerate(cookies_list, 1):
         print(f"\n===== 账号 {idx} =====")
+        if "gld:sess=" not in cookie or "gld:sess.sig=" not in cookie:
+            print("警告：Cookie 缺少 2026 新版 gld:sess / gld:sess.sig，可能导致“没有权限”。")
+            print("请从 glados.cloud 登录浏览器的 Network 中复制 /api/user/status 请求的完整 Cookie 更新 GLADOS Secret。")
 
         headers = {
             "cookie": cookie,
@@ -61,6 +70,10 @@ def glados_checkin():
             is_success = code == 0 or any(kw in message for kw in SUCCESS_KEYWORDS)
 
             if not is_success:
+                if code == -2 or "没有权限" in message:
+                    print("诊断：GLaDOS 拒绝会话认证；优先重新登录，获取带 gld:sess 与 gld:sess.sig 的 Cookie。")
+                if code == 4 or action.get("reason") == "device-mismatch":
+                    print("诊断：登录设备可能不匹配；配置 GLADOS_USER_AGENT 为登录浏览器的 navigator.userAgent。")
                 raise ValueError(f"签到失败（非重复）: code={code} message={message}")
 
             # 2. 获取剩余天数（即使重复签到也尽量获取）
